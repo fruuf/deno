@@ -1,0 +1,24 @@
+services:
+  deno:
+    ports:
+      - 80:80
+      - 8080:8080
+      - 9229:9229
+
+  nats:
+    ports:
+      - 4222:4222
+
+  postgres:
+    ports:
+      - 5432:5432
+
+  redis:
+    ports:
+      - 6379:6379
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - 5672:5672
+      - 15672:15672

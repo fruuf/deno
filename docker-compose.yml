@@ -1,0 +1,32 @@
+services:
+  deno:
+    image: mirror.gcr.io/denoland/deno:2.9.5
+    init: true
+    working_dir: /deno
+    ports:
+      - 9229:9229
+    environment:
+      - OTEL_DENO=true
+      - LOG_LEVEL=info
+      - AWS_DEFAULT_REGION=eu-west-1
+    volumes:
+      - .:/deno
+    depends_on:
+      - nats
+      - postgres
+      - redis
+      - rabbitmq
+
+  nats:
+    image: mirror.gcr.io/library/nats:2.14.5
+
+  postgres:
+    image: mirror.gcr.io/library/postgres:16.15
+    environment:
+      - POSTGRES_PASSWORD=password
+
+  redis:
+    image: mirror.gcr.io/valkey/valkey:9.1
+
+  rabbitmq:
+    image: mirror.gcr.io/library/rabbitmq:3.13

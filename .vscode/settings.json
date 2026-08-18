@@ -1,0 +1,14 @@
+{
+  "editor.formatOnSave": true,
+  "[typescript]": {
+    "deno.enable": true,
+    "deno.lint": true,
+    "deno.unstable": false,
+    "editor.defaultFormatter": "denoland.vscode-deno",
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "file",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  }
+}

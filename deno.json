@@ -1,0 +1,12 @@
+{
+  "lock": true,
+  "tasks": {
+    "test": "docker compose run --rm deno deno test --allow-all --trace-leaks --parallel --fail-fast --unstable-otel",
+    "check": "deno cache '**/*.ts' --quiet && deno fmt --quiet . && deno check --quiet . && deno lint --fix --quiet . && deno audit"
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-import-prefix", "no-unversioned-import"]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint
+        run: docker compose run --rm deno deno lint .
+
+      - name: Type check
+        run: docker compose run --rm deno deno check .
+
+      - name: Run tests
+        run: docker compose run --rm deno deno test --unstable-otel --allow-all --fail-fast --parallel
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
