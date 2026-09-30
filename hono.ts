@@ -1,5 +1,6 @@
+import { getConnInfo } from "jsr:@hono/deno";
 import { Context, Env, Handler, Hono, Next } from "jsr:@hono/hono";
-import { getConnInfo } from "jsr:@hono/hono/deno";
+import { FC, jsx } from "jsr:@hono/hono/jsx";
 import { delay, take } from "npm:rxjs/operators";
 import { errorHandler, SafeError } from "./error.ts";
 import { SchemaType, validateSchema } from "./schema.ts";
@@ -37,6 +38,13 @@ export function getHono<E extends Env>() {
   subscribeUntilComplete(shutdownStream.pipe(take(1), delay(20_000)));
 
   return app;
+}
+
+export async function renderToString<Props extends Record<string, unknown>>(
+  component: FC<Props>,
+  props: Props,
+) {
+  return await jsx(component, props).toString();
 }
 
 export async function requestSchema<Schema extends SchemaType>(
