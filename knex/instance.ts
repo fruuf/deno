@@ -1,4 +1,3 @@
-import { join } from "jsr:@std/path";
 import { Knex } from "npm:knex";
 import { checkIsError } from "../error.ts";
 import { logger } from "../log.ts";
@@ -12,8 +11,6 @@ import {
   makeKnex,
 } from "./connection.ts";
 import { KnexInvalidNameError, KnexNotSetupError } from "./errors.ts";
-import { migrationHelpers } from "./migration.ts";
-import { writeTypes } from "./write-types.ts";
 
 const knexMap = new Map<string, KnexInstances>();
 
@@ -22,13 +19,8 @@ const knexMap = new Map<string, KnexInstances>();
  */
 export async function createKnex(
   name: string,
-  migrationDirectory = "",
   postProcessResponse = defaultPostProcessResponse,
 ): Promise<KnexInstances> {
-  const migrations = migrationDirectory
-    ? { directory: migrationDirectory }
-    : {};
-
   const config = getConnectionConfig(name);
 
   logger.info("knex_connection", {
@@ -44,7 +36,6 @@ export async function createKnex(
     config.user,
     config.password,
     config.database,
-    migrations,
     postProcessResponse,
     config.proxy,
     config.connections,
@@ -65,16 +56,11 @@ export async function createKnex(
     );
   }
 
-  if (migrationDirectory) {
-    await writer.migrate.latest();
-  }
-
   const reader = makeKnex(
     config.hostReader,
     config.user,
     config.password,
     config.database,
-    migrations,
     postProcessResponse,
     config.proxy,
     config.connections,
@@ -108,21 +94,11 @@ export async function createKnex(
 /**
  * Sets up and returns a knex writer instance, creating if needed
  */
-export async function setupKnex(
-  name: string,
-  migrationDirectory?: string,
-): Promise<Knex> {
-  // deno-lint-ignore no-explicit-any
-  const globalAny = globalThis as any;
-  globalAny.KnexMigration = migrationHelpers();
-
+export async function setupKnex(name: string): Promise<Knex> {
   const knex = knexMap.get(name);
   if (!knex) {
-    const nextKnex = await createKnex(name, migrationDirectory);
+    const nextKnex = await createKnex(name);
     knexMap.set(name, nextKnex);
-    if (isTestModeEnabled && migrationDirectory) {
-      await writeTypes(nextKnex.writer, join(migrationDirectory, ".."));
-    }
     return nextKnex.writer;
   }
   return knex.writer;

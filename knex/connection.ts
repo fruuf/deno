@@ -58,7 +58,6 @@ export function makeKnex(
   user: string,
   password: string,
   database: string,
-  migrations: { directory?: string },
   postProcessResponse: typeof defaultPostProcessResponse,
   proxy: boolean,
   connections: number,
@@ -86,7 +85,6 @@ export function makeKnex(
     },
     acquireConnectionTimeout: 5_000,
     asyncStackTraces: !isProductionModeEnabled,
-    migrations,
     debug: false,
     postProcessResponse,
   });

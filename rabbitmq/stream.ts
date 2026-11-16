@@ -22,7 +22,13 @@ import {
 import { randomString, retryHandler, wait } from "../util.ts";
 import { ensureChannel, ensureValue } from "./channel.ts";
 import { ensureExchangeStream, exchangeName } from "./exchange.ts";
-import { ensureDurableQueueStream, PRIORITY } from "./queue.ts";
+import {
+  ensureDurableQueueStream,
+  failedQueueName,
+  PRIORITY,
+  RETRY_DELAYS,
+  retryQueueName,
+} from "./queue.ts";
 
 /**
  * Creates RabbitMQ stream with read/write operations for typed messages.
@@ -211,50 +217,66 @@ export function createRabbitStream<Message extends Record<string, unknown>>(
           const message = await queueChannel.get(key, { noAck: false });
           if (!message) return 1_000;
 
+          const retries = Number(
+            message.properties.headers?.["x-retries"] ?? 0,
+          );
           try {
             const json = parseJSON<Message>(message.content.toString());
-            spanAttribute(
-              "queue_priority",
-              message.properties.priority ?? PRIORITY,
-            );
-            await handler(
-              json,
-              PRIORITY - (message.properties.priority ?? PRIORITY),
-            );
+            spanAttribute("queue_retries", retries);
+            await handler(json, retries);
             ackChannel.ack(message);
           } catch (e) {
             const error = errorHandler(e);
-            const priority = message.properties.priority ?? PRIORITY;
-            const nextPriority = Math.max(priority - 1, 0);
+            ackChannel.nack(message, false, false);
+            const headers = { "x-retries": retries + 1 };
 
-            if (nextPriority === 0) {
-              logger.warn("rabbitmq_handler_failed_retries", {
-                name,
-                exchange,
-                queue,
-                pattern,
-                retries: PRIORITY - priority,
-                error: error.message,
-              });
-            } else {
+            if (retries === 0) {
               logger.info("rabbitmq_handler_failed", {
                 name,
                 exchange,
                 queue,
                 pattern,
-                retries: PRIORITY - priority,
+                retries,
                 error: error.message,
               });
+              ackChannel.sendToQueue(key, message.content, {
+                priority: PRIORITY,
+                headers,
+              });
+              return 0;
             }
 
-            ackChannel.nack(message, false, false);
-            ackChannel.sendToQueue(
-              key,
-              message.content,
-              { priority: Math.max(priority - 1, 0) },
-            );
+            const delay = RETRY_DELAYS[retries - 1];
+            if (delay === undefined) {
+              logger.error("rabbitmq_handler_parked", {
+                name,
+                exchange,
+                queue,
+                pattern,
+                retries,
+                error: error.message,
+              });
+              ackChannel.sendToQueue(failedQueueName(key), message.content);
+              return 0;
+            }
 
-            return nextPriority === 0 ? 1_000 : 0;
+            logger.warn("rabbitmq_handler_failed_retries", {
+              name,
+              exchange,
+              queue,
+              pattern,
+              retries,
+              delay,
+              error: error.message,
+            });
+            ackChannel.sendToQueue(
+              retryQueueName(key, delay),
+              message.content,
+              {
+                headers,
+              },
+            );
+            return 0;
           }
 
           try {

@@ -29,13 +29,8 @@ export {
 } from "./knex/knex.ts";
 export type { Knex, QueryBuilder, Transaction } from "./knex/knex.ts";
 export {
-  migrationHelpers,
-  mirrorFields,
-  partitionTable,
-  uuidPKey,
-} from "./knex/migration.ts";
-export {
   applySchema,
+  createEncryption,
   PG_GT,
   PG_GT_BI,
   PG_GTE,
@@ -46,15 +41,20 @@ export {
   PG_LTE_BI,
   PG_NOT_NULL,
   PG_NULL,
+  pgBatchInsert,
+  pgBatchUpdate,
+  pgBatchUpsert,
   pgBoolean,
   pgDate,
   pgDecimal,
+  pgEncrypted,
   pgEnum,
   pgExtend,
   pgFloat,
   pgForward,
   pgInteger,
   pgJson,
+  pgMostRecent,
   pgNullable,
   pgQuery,
   pgReference,
@@ -65,6 +65,4 @@ export {
   pgUnique,
   pgUuid,
 } from "./knex/pg.ts";
-export type { StaticPg } from "./knex/pg.ts";
-export { createTable } from "./knex/table.ts";
-export { writeTypes } from "./knex/write-types.ts";
+export type { Encrypted, Returning, StaticPg } from "./knex/pg.ts";

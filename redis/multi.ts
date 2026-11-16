@@ -23,54 +23,6 @@ type Operation<
   key: string,
 ) => ChainableCommander | Promise<unknown>;
 
-// type OperationHandler<Value> = {
-//   clientName: string;
-//   key: string;
-//   operation: Operation;
-//   parseValue: (rawValue: unknown) => Value;
-//   resolve: (value: Value) => void;
-//   reject: (error: Error) => void;
-// };
-
-// let isRunning = false;
-// // deno-lint-ignore no-explicit-any
-// let operationsMap: Map<string, OperationHandler<any>[]> = new Map();
-
-// function startMulti() {
-//   if (isRunning) return;
-//   isRunning = true;
-//   queueMicrotask(() => {
-//     const prevOperationsMap = operationsMap;
-//     operationsMap = new Map();
-//     isRunning = false;
-
-//     for (const operationHandlers of prevOperationsMap.values()) {
-//       const [{ clientName }] = operationHandlers;
-//       const redis = getRedisClient(clientName);
-//       let multi = redis.client.multi();
-//       for (const { operation, key } of operationHandlers) {
-//         multi = operation(multi, key);
-//       }
-//       multi
-//         .exec()
-//         .then((results) => {
-//           console.log("results", results);
-//           operationHandlers.forEach(
-//             ({ resolve, reject, parseValue }, index) => {
-//               if (!results) return reject(Error("emptyMultiResult"));
-//               const [error, result] = results[index];
-//               if (error) return reject(error);
-//               return resolve(parseValue(result));
-//             },
-//           );
-//         })
-//         .catch((error) =>
-//           operationHandlers.forEach(({ reject }) => reject(error))
-//         );
-//     }
-//   });
-// }
-
 /**
  * Executes a Redis operation as part of a batched multi/transaction.
  */

@@ -1,5 +1,5 @@
-import { getConnInfo } from "jsr:@hono/deno";
 import { Context, Env, Handler, Hono, Next } from "jsr:@hono/hono";
+import { getConnInfo } from "jsr:@hono/hono/deno";
 import { FC, jsx } from "jsr:@hono/hono/jsx";
 import { delay, take } from "npm:rxjs/operators";
 import { errorHandler, SafeError } from "./error.ts";

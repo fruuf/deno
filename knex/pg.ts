@@ -1,11 +1,15 @@
 // Re-export type required by knex.ts
-export type { StaticPg } from "./pg/types.ts";
+export type { Encrypted, StaticPg } from "./pg/types.ts";
+
+// Re-export encryption helpers and background job handling
+export { createEncryption } from "./pg/encryption.ts";
 
 // Re-export column creation functions required by knex.ts
 export {
   pgBoolean,
   pgDate,
   pgDecimal,
+  pgEncrypted,
   pgEnum,
   pgFloat,
   pgForward,
@@ -23,6 +27,13 @@ export { pgExtend, pgSchema, pgTable } from "./pg/schema.ts";
 
 // Re-export index functions required by knex.ts
 export { pgQuery, pgUnique } from "./pg/indexes.ts";
+
+// Re-export query helpers
+export { pgMostRecent } from "./pg/most-recent.ts";
+
+// Re-export batch helpers
+export { pgBatchInsert, pgBatchUpdate, pgBatchUpsert } from "./pg/batch.ts";
+export type { Returning } from "./pg/batch.ts";
 
 // Re-export apply function required by knex.ts
 export { applySchema } from "./pg/apply.ts";

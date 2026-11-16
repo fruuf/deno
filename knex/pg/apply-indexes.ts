@@ -123,7 +123,8 @@ export async function dropIndexes(
   await Promise.all(
     appliedIndexes.filter((index) => index.type === "drop").map(
       asyncQueue(async (index) => {
-        const query = `drop index "${index.name}"`;
+        // "if exists": dropping a legacy constraint also drops its index
+        const query = `drop index if exists "${index.name}"`;
         logger.info("drop_index", { query });
         await trx.raw(query);
       }),

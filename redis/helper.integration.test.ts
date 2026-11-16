@@ -83,6 +83,9 @@ describe("redis helper", () => {
     ]);
 
     const expireMeasurement = redisMeasurement("test", "expire", 5000, 1);
+    // start right after a 5s bucket boundary, otherwise the read 6s later can
+    // land two buckets on and find nothing
+    await wait(5000 - (Date.now() % 5000) + 50);
     await expireMeasurement.write("a", 10);
     expect(await expireMeasurement.read("a")).toEqual(10);
     await wait(5000);

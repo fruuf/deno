@@ -81,6 +81,33 @@ export function hashColumn(column: PgColumn): string {
 }
 
 /**
+ * Lists the encrypted columns of a table, unwrapping nullable columns
+ * @param table - Table definition
+ * @returns Column keys and whether the column is enforced
+ */
+export function encryptedColumns(
+  table: Table,
+): { column: string; enforced: boolean }[] {
+  return pgColumnsArray(table.columns)
+    .flatMap(({ key, column }) => {
+      const nextColumn = column.type === "nullable" ? column.column : column;
+      return nextColumn.type === "encrypted"
+        ? [{ column: key, enforced: nextColumn.enforced }]
+        : [];
+    });
+}
+
+/**
+ * Name of the check constraint that rejects plaintext in an encrypted column
+ * @param table - Table name
+ * @param column - Column key
+ * @returns Constraint name
+ */
+export function encryptedConstraintName(table: string, column: string) {
+  return `${table}_encrypted_${column}`;
+}
+
+/**
  * Converts column object to sorted array of key-column pairs
  * @param pgColumns - Column definitions object
  * @returns Sorted array of {key, column} objects
@@ -110,6 +137,9 @@ export function columnType(
   }
   if (column.type === "uuid") {
     return "uuid";
+  }
+  if (column.type === "encrypted") {
+    return "text";
   }
   if (column.type === "reference") {
     return "uuid";

@@ -87,7 +87,8 @@ export async function runP(command: string, options = {}) {
   if (success) {
     return stdout;
   }
-  throw Error(stderr, { cause: { code } });
+  // some tools (packer) report errors on stdout
+  throw Error(stderr || stdout, { cause: { code } });
 }
 
 type RetryBackoffHandler = (attempt: number, error: unknown) => number;

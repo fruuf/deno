@@ -6,6 +6,7 @@ import type {
   PgColumn,
   PgDate,
   PgDecimal,
+  PgEncrypted,
   PgEnum,
   PgFloat,
   PgForward,
@@ -48,6 +49,19 @@ export function pgText(defaultValue?: string): PgText {
  */
 export function pgUuid(): PgUuid {
   return createColumn({ type: "uuid" });
+}
+
+/**
+ * Creates a text column holding values encrypted in the application, see
+ * createEncryption in encryption.ts. Existing plaintext rows are encrypted by a
+ * background schema job and a check constraint rejects plaintext afterwards.
+ * @param enforced - False leaves the constraint out, for the rollout step in
+ * which older pods still write plaintext. It is only ever raised: going back
+ * to false keeps a constraint that already exists
+ * @returns PgEncrypted column definition
+ */
+export function pgEncrypted(enforced = true): PgEncrypted {
+  return createColumn({ type: "encrypted", enforced });
 }
 
 /**

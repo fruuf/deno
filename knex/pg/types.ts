@@ -19,6 +19,19 @@ export type PgUuid = {
   _pg: string;
 };
 
+/**
+ * Branded string holding an encrypted value, see encryption.ts
+ */
+export type Encrypted = string & { readonly __encrypted: unique symbol };
+
+export type PgEncrypted = {
+  type: "encrypted";
+  // false while the column still accepts plaintext, see pgEncrypted
+  enforced: boolean;
+  default?: undefined;
+  _pg: Encrypted;
+};
+
 export type PgInteger = {
   type: "integer";
   default?: number;
@@ -73,6 +86,7 @@ export type NullableColumns =
   | PgString
   | PgText
   | PgUuid
+  | PgEncrypted
   | PgInteger
   | PgFloat
   | PgDecimal
@@ -120,6 +134,7 @@ export type PgColumn =
   | PgString
   | PgText
   | PgUuid
+  | PgEncrypted
   | PgInteger
   | PgFloat
   | PgDecimal

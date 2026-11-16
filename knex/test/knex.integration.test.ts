@@ -1,11 +1,9 @@
-import { sortBy } from "jsr:@std/collections";
 import { expect } from "jsr:@std/expect";
-import { join } from "jsr:@std/path";
 import { before, describe, it } from "jsr:@std/testing/bdd";
 import { Knex } from "npm:knex";
 import { errorHandler } from "../../error.ts";
 import { expectAsyncError } from "../../test.ts";
-import { randomString, uuid, wait } from "../../util.ts";
+import { uuid, wait } from "../../util.ts";
 import { iterateQuery } from "../helper.ts";
 import {
   getKnex,
@@ -17,221 +15,39 @@ import {
   onRollback,
   setupKnex,
 } from "../knex.ts";
-import { partitionTable } from "../migration.ts";
-import { TableBalance, TableUser, tableUser } from "./database.ts";
+import {
+  applySchema,
+  pgInteger,
+  pgNullable,
+  pgSchema,
+  pgString,
+  pgTable,
+  StaticPg,
+} from "../pg.ts";
+
+const schema = pgSchema("knex-test");
+const tableUser = pgTable(schema, "user", () => ({
+  name: pgString(),
+  age: pgNullable(pgInteger()),
+}));
+type TableUser = StaticPg<typeof tableUser>;
 
 describe("npm:knex", () => {
   let knex: Knex;
+  let userA: TableUser;
+  let userB: TableUser;
+
   before(async () => {
-    knex = await setupKnex(
-      "knex-test",
-      join(import.meta.dirname ?? "", "migrations"),
-    );
+    knex = await setupKnex("knex-test");
+    await applySchema("knex-test", null, schema);
+    [userA, userB] = await knex<TableUser>("user")
+      .insert([{ name: "User A" }, { name: "User B" }])
+      .returning("*");
   });
 
   it("gets knex", () => {
     const nextKnex = getKnex("knex-test");
     expect(nextKnex).toBeTruthy();
-  });
-
-  let userA: TableUser;
-  let userB: TableUser;
-
-  it("batch insert user", async () => {
-    userA = { id: uuid(), name: "User A", age: null };
-    userB = { id: uuid(), name: "User B", age: null };
-
-    const firstUsers = await knexTransaction(
-      "knex-test",
-      (trx) => tableUser.batchInsert(trx, ["id"], ["name"], [userA], "changed"),
-    );
-
-    expect(firstUsers).toHaveLength(1);
-
-    const secondUsers = await knexTransaction(
-      "knex-test",
-      (trx) =>
-        tableUser.batchInsert(trx, ["id"], ["name"], [userA, userB], "changed"),
-    );
-
-    expect(secondUsers).toHaveLength(1);
-    expect([...firstUsers, ...secondUsers]).toEqual([userA, userB]);
-
-    const allUsers = await knexTransaction(
-      "knex-test",
-      (trx) =>
-        tableUser.batchInsert(trx, ["id"], ["name"], [userA, userB], "all"),
-    );
-
-    expect(sortBy(allUsers, ({ name }) => name)).toEqual([userA, userB]);
-
-    const changedUsers = await knexTransaction(
-      "knex-test",
-      (trx) =>
-        tableUser.batchInsert(trx, ["id"], ["name"], [userA, userB], "changed"),
-    );
-
-    expect(changedUsers).toHaveLength(0);
-  });
-
-  let userC: TableUser;
-
-  it("batch upsert a user", async () => {
-    userC = { id: uuid(), name: "User C", age: null };
-
-    const firstUsers = await knexTransaction(
-      "knex-test",
-      (trx) =>
-        tableUser.batchUpsert(
-          trx,
-          ["id"],
-          ["name"],
-          [],
-          [userA, userB, userC],
-          "changed",
-        ),
-    );
-
-    expect(firstUsers).toEqual([userC]);
-
-    const allUsers = await knexTransaction(
-      "knex-test",
-      (trx) =>
-        tableUser.batchUpsert(
-          trx,
-          ["id"],
-          ["name"],
-          [],
-          [userA, userB, userC],
-          "all",
-        ),
-    );
-
-    expect(sortBy(allUsers, ({ name }) => name)).toEqual([userA, userB, userC]);
-
-    userA.name = `${userA.name} (changed)`;
-
-    const changedUsers = await knexTransaction(
-      "knex-test",
-      (trx) =>
-        tableUser.batchUpsert(
-          trx,
-          ["id"],
-          ["name"],
-          [],
-          [userA, userB, userC],
-          "changed",
-        ),
-    );
-
-    expect(changedUsers).toEqual([userA]);
-  });
-
-  it("upsert a user", async () => {
-    const user: TableUser = { id: uuid(), name: "User A", age: null };
-
-    const firstUser = await knexTransaction(
-      "knex-test",
-      (trx) => tableUser.upsert(trx, ["id"], ["name"], [], user),
-    );
-
-    expect(firstUser).toEqual(user);
-
-    user.name = `${user.name} (changed)`;
-
-    const changedUser = await knexTransaction(
-      "knex-test",
-      (trx) => tableUser.upsert(trx, ["id"], ["name"], [], user),
-    );
-
-    expect(changedUser).toEqual(user);
-  });
-
-  let userD: TableUser;
-
-  it("batch update a user", async () => {
-    userD = { id: uuid(), name: "User D", age: null };
-
-    const firstUsers = await knexTransaction(
-      "knex-test",
-      (trx) =>
-        tableUser.batchUpdate(
-          trx,
-          ["id"],
-          ["name"],
-          [userA, userB, userC, userD],
-          "changed",
-        ),
-    );
-
-    expect(firstUsers).toHaveLength(0);
-
-    const allUsers = await knexTransaction(
-      "knex-test",
-      (trx) =>
-        tableUser.batchUpdate(
-          trx,
-          ["id"],
-          ["name"],
-          [userA, userB, userC, userD],
-          "all",
-        ),
-    );
-
-    expect(sortBy(allUsers, ({ name }) => name)).toEqual([
-      userA,
-      userB,
-      userC,
-    ]);
-
-    userB.name = `${userB.name} (changed)`;
-
-    const changedUsers = await knexTransaction(
-      "knex-test",
-      (trx) =>
-        tableUser.batchUpdate(
-          trx,
-          ["id"],
-          ["name"],
-          [userA, userB, userC],
-          "changed",
-        ),
-    );
-
-    expect(changedUsers).toEqual([userB]);
-  });
-
-  // we need this test since w recycle temp-tables now
-  // https://www.titanwolf.org/Network/q/4504f170-3946-457a-8cad-eee1002ec141/y
-  it("multi-batch in the same transaction", async () => {
-    const userIdA = uuid();
-    const userIdB = uuid();
-
-    await knexTransaction("knex-test", async (trx) => {
-      await tableUser.batchInsert(
-        trx,
-        ["id"],
-        ["name"],
-        [
-          { id: userIdA, name: "A" },
-          { id: userIdB, name: "B" },
-        ],
-      );
-
-      await trx<TableUser>("user").update("name", "C").where("id", userIdA);
-
-      // if we dont reset the temp tables userA will still be in here and get reset to name A
-      await tableUser.batchUpdate(
-        trx,
-        ["id"],
-        ["name"],
-        [{ id: userIdB, name: "D" }],
-      );
-
-      const [user] = await trx<TableUser>("user").where("id", userIdA);
-
-      expect(user.name).toEqual("C");
-    });
   });
 
   it("onCommit", async () => {
@@ -522,50 +338,5 @@ describe("npm:knex", () => {
           .orderBy("id"),
       );
     });
-  });
-
-  it("partitions table", async () => {
-    await knexTransaction("knex-test", async (trx) => {
-      await partitionTable(trx, "user", "id");
-      await trx.rollback();
-    });
-  });
-
-  it("mirror fields", async () => {
-    const knex = getKnex("knex-test");
-
-    const [userA, userB] = await knex<TableUser>("user")
-      .insert([
-        { id: uuid(), name: randomString() },
-        { id: uuid(), name: randomString() },
-      ])
-      .returning("*");
-
-    const [balanceA] = await knex<TableBalance>("balance")
-      .insert({ user_id: userA.id, currency: "usd", amount: 1, value: 1 })
-      .returning("*");
-
-    expect(balanceA.user_name).toEqual(userA.name);
-    expect(balanceA.age).toEqual(userA.age);
-
-    const [balanceB] = await knex<TableBalance>("balance")
-      .update("user_id", userB.id)
-      .where("user_id", userA.id)
-      .returning("*");
-
-    expect(balanceB.user_name).toEqual(userB.name);
-    expect(balanceB.age).toEqual(userB.age);
-
-    const [nextUserB] = await knex<TableUser>("user")
-      .update("name", randomString())
-      .where("id", userB.id)
-      .returning("*");
-
-    const [nextBalanceB] = await knex<TableBalance>("balance").where(
-      "user_id",
-      userB.id,
-    );
-    expect(nextBalanceB.user_name).toEqual(nextUserB.name);
-    expect(nextBalanceB.age).toEqual(nextUserB.age);
   });
 });

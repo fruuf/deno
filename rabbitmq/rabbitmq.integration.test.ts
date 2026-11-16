@@ -1,10 +1,11 @@
 import { expect } from "jsr:@std/expect";
 import { describe, it } from "jsr:@std/testing/bdd";
-import { interval, take } from "npm:rxjs";
 import { cacheHandler, stringKey } from "../cache.ts";
 import { createErrorMessage } from "../error.ts";
 import { recordStream } from "../rxjs/helper.ts";
+import { withTestIdentifier } from "../service.ts";
 import { wait } from "../util.ts";
+import { ensureChannel, ensureValue } from "./channel.ts";
 import { createRabbitStream } from "./rabbitmq.ts";
 
 type User = {
@@ -124,52 +125,53 @@ describe("rabbitmq", () => {
     const stream = getStream("retry");
     type Event = { id: number; retries: number };
     const events: Event[] = [];
-    let oneFailed = 0;
     stream.pullQueue(
       "retries",
-      async (user, retries) => {
+      (user, retries) => {
         events.push({ id: user.id, retries });
-        if (retries > 0) {
-          await wait(1000);
-        }
         if (user.id % 2 && retries < 2) {
           throw createErrorMessage("FAILED");
-        }
-        if (user.id === 1 && oneFailed < 10) {
-          oneFailed += 1;
-          throw createErrorMessage("ERROR");
         }
       },
       {},
       1,
     );
 
-    interval(500).pipe(take(5)).subscribe(async (id) => {
-      await stream.writeItem({ id: id, name: String(id) });
-    });
-
-    await wait(20_000);
+    await wait(100);
+    await stream.writeItems(
+      [0, 1, 2, 3].map((id) => ({ id, name: String(id) })),
+    );
+    await wait(5_000);
 
     expect(events).toEqual([
       { id: 0, retries: 0 },
       { id: 1, retries: 0 },
-      { id: 1, retries: 1 },
       { id: 2, retries: 0 },
       { id: 3, retries: 0 },
+      { id: 1, retries: 1 },
       { id: 3, retries: 1 },
-      { id: 4, retries: 0 },
       { id: 1, retries: 2 },
       { id: 3, retries: 2 },
-      { id: 1, retries: 3 },
-      { id: 1, retries: 4 },
-      { id: 1, retries: 5 },
-      { id: 1, retries: 6 },
-      { id: 1, retries: 7 },
-      { id: 1, retries: 8 },
-      { id: 1, retries: 9 },
-      { id: 1, retries: 10 },
-      { id: 1, retries: 10 },
-      { id: 1, retries: 10 },
     ]);
+  });
+
+  it("parks values that keep failing", async () => {
+    const stream = getStream("park");
+    let attempts = 0;
+    stream.pullQueue("parked", () => {
+      attempts += 1;
+      throw createErrorMessage("ERROR");
+    });
+
+    await wait(100);
+    await stream.writeItem({ id: 1, name: "one" });
+    await wait(8_000);
+
+    const channel = await ensureValue(ensureChannel());
+    const failed = await channel.checkQueue(
+      `${withTestIdentifier("rabbitmq/park/parked(*.*)")}/failed`,
+    );
+    expect(attempts).toBe(6);
+    expect(failed.messageCount).toBe(1);
   });
 });

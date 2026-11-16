@@ -1,4 +1,3 @@
-import { toCamelCase } from "jsr:@std/text";
 import { parseString } from "npm:xml2js";
 import { parse } from "npm:yaml";
 import { logger } from "../log.ts";
@@ -116,9 +115,6 @@ function parseXmlResponse(text: string): Promise<Json> {
         attrkey: "__self",
         normalize: true,
         trim: true,
-        // TODO: remove preprocessors
-        attrNameProcessors: [toCamelCase],
-        tagNameProcessors: [toCamelCase],
       },
       (err: Error | undefined, result: Json) => {
         if (err) {
