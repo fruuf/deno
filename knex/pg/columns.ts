@@ -89,13 +89,17 @@ export function pgFloat(defaultValue?: number): PgFloat {
 }
 
 /**
- * Creates a PostgreSQL decimal column (numeric type) for exact numeric values
+ * Creates a PostgreSQL numeric(38,0) column for whole numbers of up to 38
+ * digits; a larger value is rejected on write. Not a bare numeric: redshift
+ * zero-ETL only replicates a numeric that has a precision, and 38 is the most
+ * it takes
  * @param defaultValue - Optional default value for the column
  * @returns PgDecimal column definition
  */
 export function pgDecimal(defaultValue?: bigint): PgDecimal {
   return createColumn({
     type: "decimal",
+    precision: 38,
     default: defaultValue,
   });
 }

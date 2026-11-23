@@ -477,6 +477,63 @@ describe("pg", () => {
     await applySchema("test", null, forwardRenameSchema);
   });
 
+  it("gives a bare numeric column its precision", async () => {
+    const knex = getKnex("test");
+    await knex.raw(`drop table if exists "numeric_test"`);
+
+    // every release gets a schema name of its own, so each one is applied
+    function release() {
+      const releaseSchema = pgSchema(`numeric_${randomString()}`);
+      const table = pgTable(releaseSchema, "numeric_test", () => ({
+        amount: pgDecimal(BigInt(7)),
+      }));
+      return { releaseSchema, table };
+    }
+    type TableNumeric = StaticPg<ReturnType<typeof release>["table"]>;
+
+    function amountColumn() {
+      return knex("information_schema.columns")
+        .select("numeric_precision", "numeric_scale", "column_default")
+        .where({ table_name: "numeric_test", column_name: "amount" })
+        .first();
+    }
+
+    await applySchema("test", null, release().releaseSchema);
+    expect(await amountColumn()).toEqual({
+      numeric_precision: 38,
+      numeric_scale: 0,
+      column_default: "7",
+    });
+
+    // what pgDecimal created before it had a precision
+    await knex.raw(
+      `alter table "numeric_test" alter column "amount" type numeric`,
+    );
+    const largest = 10n ** 38n - 1n;
+    await knex<TableNumeric>("numeric_test").insert({ amount: largest });
+
+    await applySchema("test", null, release().releaseSchema);
+    expect(await amountColumn()).toEqual({
+      numeric_precision: 38,
+      numeric_scale: 0,
+      column_default: "7",
+    });
+    const [row] = await knex<TableNumeric>("numeric_test").select("amount");
+    expect(row.amount).toBe(largest);
+    await expect(
+      knex<TableNumeric>("numeric_test").insert({ amount: largest + 1n }),
+    ).rejects.toThrow();
+
+    // the column is as declared now, the next release leaves it alone
+    const queries: string[] = [];
+    const onQuery = ({ sql }: { sql: string }) => queries.push(sql);
+    knex.on("query", onQuery);
+    await applySchema("test", null, release().releaseSchema);
+    knex.off("query", onQuery);
+    expect(queries.some((sql) => sql.startsWith("select"))).toBe(true);
+    expect(queries.filter((sql) => sql.startsWith("alter table"))).toEqual([]);
+  });
+
   it("applies test schema", async () => {
     await applySchema("test", null, schema);
   });

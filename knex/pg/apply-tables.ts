@@ -10,8 +10,19 @@ type ColumnTable = {
   column_name: string;
   is_nullable: "YES" | "NO";
   udt_name: string;
+  numeric_precision: number | null;
+  numeric_scale: number | null;
   column_default: string | null;
 };
+
+// a numeric has the same udt_name with and without a precision, so the
+// precision is read as well. Written the way columnType writes it
+function currentType(column: ColumnTable) {
+  if (column.udt_name === "numeric" && column.numeric_precision !== null) {
+    return `numeric(${column.numeric_precision},${column.numeric_scale})`;
+  }
+  return column.udt_name;
+}
 
 // deno-lint-ignore no-explicit-any
 function toColumnDefault(type: string | null, value: any) {
@@ -41,6 +52,8 @@ export async function applyTables(trx: Transaction, tables: Table[]) {
       "table_name",
       "column_name",
       "udt_name",
+      "numeric_precision",
+      "numeric_scale",
       "is_nullable",
       "column_default",
     )
@@ -103,7 +116,7 @@ export async function applyTables(trx: Transaction, tables: Table[]) {
 
       if (
         currentColumn &&
-        ((currentColumn.udt_name !== nextColumn.type) ||
+        ((currentType(currentColumn) !== nextColumn.type) ||
           (nextColumn.nullable !== (currentColumn.is_nullable === "YES")) ||
           (currentColumn?.column_default !== nextDefault))
       ) {
@@ -113,7 +126,7 @@ export async function applyTables(trx: Transaction, tables: Table[]) {
           type: nextColumn.type,
           nullable: nextColumn.nullable,
           default: nextDefault,
-          prevType: currentColumn.udt_name,
+          prevType: currentType(currentColumn),
           prevNullable: currentColumn.is_nullable === "YES",
           prevDefault: currentColumn?.column_default,
         };

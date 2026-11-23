@@ -46,6 +46,7 @@ export type PgFloat = {
 
 export type PgDecimal = {
   type: "decimal";
+  precision: number;
   default?: bigint;
   _pg: bigint;
 };
