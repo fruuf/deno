@@ -154,7 +154,7 @@ export function columnType(
     return "float8";
   }
   if (column.type === "decimal") {
-    return "numeric";
+    return `numeric(${column.precision},0)`;
   }
   if (column.type === "date") {
     return "timestamptz";
